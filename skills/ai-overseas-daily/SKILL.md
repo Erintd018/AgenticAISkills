@@ -37,7 +37,7 @@ description: 每日自动生成海外 AI/LLM 情报日报。从 8 个数据源�
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `BOCHA_API_KEY` | 博查搜索 API Key | 未配置则跳过雷达6 |
-| `X_LIST_URL` | Twitter/X 精选 List URL | 未配置则跳过雷达1 |
+| `X_LIST_URL` | Twitter/X 精选 List URL | 内置默认精选 List，可覆盖 |
 | `FEISHU_WIKI_PARENT_NODE_TOKEN` | 飞书知识库父节点 | 空（空间根目录） |
 | `FEISHU_BASE_URL` | 飞书 API 域名 | `https://open.feishu.cn` |
 | `FEISHU_WIKI_DOMAIN` | 飞书知识库页面域名 | `bytedance.feishu.cn` |
@@ -129,7 +129,7 @@ python3 scripts/daily_report.py --no-distribute
 
 | 自定义项 | 操作位置 | 说明 |
 |----------|----------|------|
-| 更换 Twitter List | `.env` 中的 `X_LIST_URL` | 设置自己的 X List URL，建议添加 AI 研究者、模型厂商、VC 分析师 |
+| 更换 Twitter List | `.env` 中的 `X_LIST_URL` | 默认使用内置精选 List；可设置自己的 X List URL，建议添加 AI 研究者、模型厂商、VC 分析师 |
 | 修改报告 prompt | `references/system_prompt.md` | 调整板块定义、选题门控、语言风格、红线规则 |
 | 调整搜索关键词 | `scripts/daily_report.py` 中的 `fetch_twitter_global_data()` 和 `fetch_bocha_data()` | 修改 `query` 字符串或 `queries` 列表 |
 | 增减分发渠道 | `scripts/distribute.py` 中的 `distribute_report()` | 新增发布函数并在其中调用 |

@@ -176,45 +176,56 @@ def publish_to_feishu(title, md_content):
 # ========== 如流群消息 ==========
 
 def extract_summary(md_content):
-    """从完整报告中提取精简摘要：板块标题 + 每条新闻（**标题加粗** + 子弹句不加粗）
-    格式规范：只保留标题和关键子弹句，不写入选理由/介绍等详情"""
+    """从完整报告中提取精简摘要：板块标题 + 每条新闻标题/子弹句"""
     lines = md_content.split('\n')
-    summary_parts = []
+    result = []
+    counter = 0
+
+    def add_item(title, bullet=""):
+        nonlocal counter
+        title = title.strip()
+        bullet = bullet.strip()
+        if not title:
+            return
+        counter += 1
+        result.append(f"{counter}. **{title}**")
+        if bullet:
+            result.append(f"   {bullet}")
 
     for line in lines:
         stripped = line.strip()
+        if not stripped:
+            continue
 
-        # 收集板块标题
         if stripped.startswith('## '):
-            summary_parts.append(f"\n{stripped}")
+            result.append(f"\n{stripped[3:].strip()}")
+            counter = 0
+            continue
 
-        # 格式1：「- **标题**：子弹句」
-        elif stripped.startswith('- **') and '**' in stripped[4:]:
-            match = re.match(r'- \*\*(.+?)\*\*[:：]?\s*(.*)', stripped)
-            if match:
-                title = match.group(1)
-                bullet = match.group(2).strip()
-                summary_parts.append(f"- **{title}**")
-                if bullet:
-                    summary_parts.append(f"  {bullet}")
+        generic = re.match(r'^- \*\*一句话说清(?:发生了什么)?\*\*[:：]\s*(.+)', stripped)
+        if generic:
+            add_item(generic.group(1))
+            continue
+
+        numbered = re.match(r'^\d+\.\s+\*\*(.+?)\*\*[:：]?\s*(.*)', stripped)
+        if numbered:
+            add_item(numbered.group(1), numbered.group(2))
+            continue
+
+        bullet = re.match(r'^- \*\*(.+?)\*\*[:：]?\s*(.*)', stripped)
+        if bullet:
+            title = bullet.group(1)
+            if '一句话说清' in title:
+                add_item(bullet.group(2))
             else:
-                summary_parts.append(stripped)
+                add_item(title, bullet.group(2))
+            continue
 
-        # 格式2：「### N. **标题**」→ 提取标题
-        elif stripped.startswith('### ') and '**' in stripped:
-            bold = re.search(r'\*\*(.+?)\*\*', stripped)
-            if bold:
-                summary_parts.append(f"- **{bold.group(1)}**")
+        heading = re.match(r'^###\s+(?:\d+\.\s*)?\*\*(.+?)\*\*[:：]?\s*(.*)', stripped)
+        if heading:
+            add_item(heading.group(1), heading.group(2))
 
-        # 格式3：「**一句话说清发生了什么**：子弹句」→ 提取子弹句
-        elif '**一句话说清发生了什么**' in stripped:
-            match = re.search(r'\*\*一句话说清发生了什么\*\*[:：]\s*(.+)', stripped)
-            if match:
-                bullet = match.group(1).strip()
-                if bullet:
-                    summary_parts.append(f"  {bullet}")
-
-    return '\n'.join(summary_parts).strip()
+    return '\n'.join(result).strip()
 
 
 def send_to_ruliu(title, md_content, feishu_url=None):

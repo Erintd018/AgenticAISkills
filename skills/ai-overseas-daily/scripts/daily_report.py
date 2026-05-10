@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from dotenv import load_dotenv
+from openai import OpenAI
 
 # 确保同目录下的模块可被导入
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,23 +24,24 @@ LLM_API_KEY = os.getenv("LLM_API_KEY")
 LLM_BASE_URL = os.getenv("LLM_BASE_URL")
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-# Twitter List 可通过环境变量自定义，未配置则跳过
-X_LIST_URL = os.getenv("X_LIST_URL", "")
+DEFAULT_X_LIST_URL = "https://x.com/i/lists/2043220449883218100"
+X_LIST_URL = os.getenv("X_LIST_URL") or DEFAULT_X_LIST_URL
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def load_prompt(filename):
-    """从 references 目录加载提示词文件"""
-    # 优先从 skill 目录结构 (scripts/../references/) 加载
-    ref_path = os.path.join(SCRIPT_DIR, "..", "references", filename)
-    if os.path.exists(ref_path):
-        with open(ref_path, "r", encoding="utf-8") as f:
-            return f.read()
-    # 兼容扁平项目结构 (prompts/)
-    flat_path = os.path.join(SCRIPT_DIR, "..", "prompts", filename)
-    if os.path.exists(flat_path):
-        with open(flat_path, "r", encoding="utf-8") as f:
-            return f.read()
-    raise FileNotFoundError(f"找不到提示词文件: {filename}，已搜索 references/ 和 prompts/")
+    """从项目或 skill 目录结构加载提示词文件"""
+    candidates = [
+        os.path.join(SCRIPT_DIR, "prompts", filename),
+        os.path.join(SCRIPT_DIR, "references", filename),
+        os.path.join(SCRIPT_DIR, "..", "references", filename),
+        os.path.join(SCRIPT_DIR, "..", "prompts", filename),
+    ]
+    for path in candidates:
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    searched = ", ".join(candidates)
+    raise FileNotFoundError(f"找不到提示词文件: {filename}，已搜索: {searched}")
 
 # --- 代理配置 ---
 # 从环境变量读取代理配置，解析 PAC，然后清除环境变量
@@ -87,8 +89,8 @@ def parse_twitter_date(date_str):
 
 def fetch_twitter_list_data():
     print("🚀 [雷达1] 正在抓取推特精选 List...")
-    if not X_LIST_URL:
-        print("⚠️ [雷达1] X_LIST_URL 未配置，跳过此雷达。请在 .env 中设置 X_LIST_URL。")
+    if not X_LIST_URL or "你的真实List_ID" in X_LIST_URL:
+        print("⚠️ [雷达1] X_LIST_URL 未配置或仍为占位符，将跳过此雷达。")
         return []
 
     list_id = X_LIST_URL.split("/")[-1]
